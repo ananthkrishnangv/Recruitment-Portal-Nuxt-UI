@@ -1,0 +1,55 @@
+{
+  "name": "csir-serc-recruitment-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate:dev": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma db push --force-reset && tsx prisma/seed.ts",
+    "audit:integrity": "tsx scripts/audit-integrity.ts",
+    "settings:print": "tsx scripts/print-settings.ts",
+    "certin:report": "tsx scripts/certin-report.ts"
+  },
+  "dependencies": {
+    "@heroui/react": "^3.1.0",
+    "@heroui/styles": "^3.1.0",
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "latest",
+    "clsx": "latest",
+    "effect": "^3.21.2",
+    "framer-motion": "^12.40.0",
+    "jose": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "pg": "^8.21.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "tailwind-merge": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.0",
+    "@types/node": "latest",
+    "@types/pg": "^8.20.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "prisma": "latest",
+    "tailwindcss": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

@@ -1,0 +1,105 @@
+# ═══════════════════════════════════════════════════════════════
+# CSIR-SERC Recruitment Portal — Podman Compose Production
+# Host: 10.10.200.53
+# Network: Macvlan mcvlan1 (10.30.0.40 - 10.30.0.100)
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  # ── PostgreSQL 17 Database ──
+  postgres:
+    image: docker.io/library/postgres:17-alpine
+    container_name: csir-recruitment-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: csir_admin
+      POSTGRES_PASSWORD: CsirS3rc@Db2026!xK9p
+      POSTGRES_DB: csir_recruitment
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/db-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U csir_admin -d csir_recruitment"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      mcvlan1:
+        ipv4_address: 10.30.0.41
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+
+  # ── Redis 7 Cache ──
+  redis:
+    image: docker.io/library/redis:7-alpine
+    container_name: csir-recruitment-redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass R3dis@CsirS3rc2026!
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "R3dis@CsirS3rc2026!", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      mcvlan1:
+        ipv4_address: 10.30.0.42
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+
+  # ── Next.js Application ──
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: csir-recruitment-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://csir_admin:CsirS3rc@Db2026!xK9p@10.30.0.41:5432/csir_recruitment?schema=public"
+      SESSION_SECRET: "CsirS3rcSess10n$ecret2026!Pr0duct10nK3y@x9Zm"
+      FIELD_ENCRYPTION_KEY: "CsirEncrypt10nK3y2026!AES256GCM@x"
+      NEXT_PUBLIC_PORTAL_NAME: "CSIR-SERC Recruitment Portal"
+      LOCAL_UPLOAD_DIR: "storage/uploads"
+      ADMIN_BOOTSTRAP_PIN: "826491"
+      DEMO_OTP: "123456"
+      REDIS_URL: "redis://:R3dis@CsirS3rc2026!@10.30.0.42:6379"
+    volumes:
+      - uploads:/app/storage/uploads
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      mcvlan1:
+        ipv4_address: 10.30.0.40
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+
+# ── Volumes ──
+volumes:
+  pgdata:
+    driver: local
+  uploads:
+    driver: local
+
+# ── Network: Use existing Podman Macvlan mcvlan1 ──
+networks:
+  mcvlan1:
+    external: true

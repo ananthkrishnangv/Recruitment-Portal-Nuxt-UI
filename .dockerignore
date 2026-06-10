@@ -1,0 +1,43 @@
+# Dependencies
+node_modules
+
+# Build (we rebuild inside container)
+.next
+out
+
+# Source control
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Docker/Podman
+Dockerfile
+docker-compose.yml
+podman-compose.yml
+
+# Config
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Docs
+*.md
+!README.md
+
+# Development
+.eslintrc*
+coverage
+*.log
+.gemini
+
+# Uploads
+storage/uploads
+
+# OS
+.DS_Store
+Thumbs.db

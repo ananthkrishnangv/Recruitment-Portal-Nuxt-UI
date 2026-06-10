@@ -1,0 +1,40 @@
+# ═══════════════════════════════════════════════════
+# CSIR-SERC Recruitment Portal — Development Compose
+# Use: docker compose up -d (or podman-compose up -d)
+# ═══════════════════════════════════════════════════
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: csir-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: csir_recruitment
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+      - ./scripts/db-init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: csir-dev-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata_dev:
+    driver: local

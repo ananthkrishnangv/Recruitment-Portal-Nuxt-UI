@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  APPLICANT
+  SCRUTINY_OFFICER
+  REVIEWER
+  DIRECTOR_APPROVER
+  ADMIN
+  AUDITOR
+}
+
+enum ApplicationStatus {
+  DRAFT
+  SUBMITTED
+  PAYMENT_PENDING
+  PAYMENT_SUCCESS
+  UNDER_SCRUTINY
+  DEFICIENCY_RAISED
+  RECOMMENDED
+  REJECTED
+  DIRECTOR_APPROVED
+  LOCKED
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  VERIFIED
+  DEFICIENT
+  REPLACED
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  DETECTED
+  REPORTED_TO_CERT_IN
+  UNDER_REMEDIATION
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id                    String    @id @default(uuid())
+  email                 String?   @unique
+  mobile                String?   @unique
+  aadhaarLocalEncrypted String?
+  aadhaarLast4          String?
+  name                  String
+  role                  UserRole  @default(APPLICANT)
+  consentVersion        String?
+  consentAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  applications   Application[]
+  documents      ApplicantDocument[]
+  auditLogs      AuditLog[]
+  consentRecords ConsentRecord[]
+}
+
+model OtpChallenge {
+  id         String    @id @default(uuid())
+  identifier String
+  purpose    String
+  otpHash    String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([identifier, purpose])
+}
+
+model RecruitmentPost {
+  id              String   @id @default(uuid())
+  postCode        String   @unique
+  title           String
+  advertisementNo String
+  crucialDate     DateTime
+  openingDate     DateTime
+  closingDate     DateTime
+  categoryMatrix  Json
+  eligibilityRule Json
+  feeRule         Json
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  applications Application[]
+  vacancies    PostCategoryVacancy[]
+
+  @@index([advertisementNo])
+  @@index([isActive, crucialDate])
+}
+
+model PostCategoryVacancy {
+  id                  String  @id @default(uuid())
+  postId              String
+  category            String
+  vacancyCount        Int
+  backlogCount        Int     @default(0)
+  horizontalPwbdCount Int     @default(0)
+  remarks             String?
+
+  post RecruitmentPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, category])
+  @@index([category])
+}
+
+model Application {
+  id                String            @id @default(uuid())
+  applicationNo     String            @unique
+  applicantId       String
+  postId            String
+  status            ApplicationStatus @default(DRAFT)
+  category          String
+  dob               DateTime
+  formData          Json
+  eligibilityResult Json?
+  validationResult  Json?
+  paymentStatus     String?
+  submittedAt       DateTime?
+  lockedAt          DateTime?
+  finalHash         String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  applicant       User                  @relation(fields: [applicantId], references: [id])
+  post            RecruitmentPost       @relation(fields: [postId], references: [id])
+  documents       ApplicationDocument[]
+  payments        Payment[]
+  scrutinyActions ScrutinyAction[]
+
+  @@index([postId, status])
+  @@index([applicantId])
+  @@index([category, status])
+  @@index([submittedAt])
+}
+
+model ApplicantDocument {
+  id           String   @id @default(uuid())
+  applicantId  String
+  documentType String
+  storageKey   String
+  originalName String
+  mimeType     String
+  fileHash     String
+  sizeBytes    Int
+  version      Int      @default(1)
+  uploadedAt   DateTime @default(now())
+
+  applicant User @relation(fields: [applicantId], references: [id])
+
+  @@index([applicantId, documentType])
+}
+
+model ApplicationDocument {
+  id                  String                     @id @default(uuid())
+  applicationId       String
+  documentType        String
+  storageKey          String
+  originalName        String
+  mimeType            String
+  fileHash            String
+  sizeBytes           Int
+  ocrText             String?
+  ocrConfidence       Float?
+  verificationStatus  DocumentVerificationStatus @default(PENDING)
+  verificationRemarks String?
+  uploadedAt          DateTime                   @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId])
+  @@index([documentType])
+  @@index([ocrConfidence])
+}
+
+model Payment {
+  id             String    @id @default(uuid())
+  applicationId  String
+  gatewayRef     String    @unique
+  amount         Decimal
+  status         String
+  idempotencyKey String    @unique
+  webhookPayload Json?
+  paidAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId, status])
+}
+
+model ScrutinyAction {
+  id            String   @id @default(uuid())
+  applicationId String
+  actorId       String
+  fromStatus    String
+  toStatus      String
+  remarks       String?
+  actionPayload Json?
+  createdAt     DateTime @default(now())
+
+  application Application @relation(fields: [applicationId], references: [id])
+
+  @@index([applicationId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model SiteSetting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  isSecret  Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model ConsentNotice {
+  id        String   @id @default(uuid())
+  version   String   @unique
+  title     String
+  body      String
+  language  String   @default("en")
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  records ConsentRecord[]
+}
+
+model ConsentRecord {
+  id        String   @id @default(uuid())
+  userId    String
+  noticeId  String
+  purpose   String
+  accepted  Boolean
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user   User          @relation(fields: [userId], references: [id])
+  notice ConsentNotice @relation(fields: [noticeId], references: [id])
+
+  @@index([userId, purpose])
+}
+
+model CertInIncident {
+  id                 String           @id @default(uuid())
+  title              String
+  description        String
+  severity           IncidentSeverity
+  status             IncidentStatus   @default(DETECTED)
+  detectedAt         DateTime         @default(now())
+  reportedAt         DateTime?
+  reportReference    String?
+  affectedSystems    Json
+  containmentActions Json?
+  evidenceHash       String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([severity, status])
+  @@index([detectedAt])
+}
+
+model SecurityControlCheck {
+  id          String   @id @default(uuid())
+  controlCode String   @unique
+  controlName String
+  framework   String
+  status      String   @default("PENDING")
+  evidenceUrl String?
+  remarks     String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  actorId      String?
+  action       String
+  entityType   String
+  entityId     String
+  ipAddress    String?
+  userAgent    String?
+  beforeJson   Json?
+  afterJson    Json?
+  previousHash String?
+  currentHash  String
+  createdAt    DateTime @default(now())
+
+  actor User? @relation(fields: [actorId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
